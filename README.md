@@ -1,4 +1,4 @@
-# docker-makepkg
+# 🐋 docker-makepkg
 
 This Docker image automtically buils Arch packages from any PKGBUILD file using makepkg.
 
