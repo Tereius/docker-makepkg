@@ -59,7 +59,7 @@ else
 
     if [ ! -z "$ARCH_REPO_NAME" ]; then
         echo "---------------- Creating/Updating repo with name \"$ARCH_REPO_NAME\""
-        repo-add --nocolor --new -R $out_dir/$ARCH_REPO_NAME.db.tar.gz $out_dir/*.pkg.*
+        repo-add --nocolor -R $out_dir/$ARCH_REPO_NAME.db.tar.gz $out_dir/*.pkg.*
         if [ ! -z "$UID" ]; then chown -R $UID $arch_dir; fi
         if [ ! -z "$GID" ]; then chown -R :$GID $arch_dir; fi
     fi
