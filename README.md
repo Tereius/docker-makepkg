@@ -28,6 +28,8 @@ You can use this container to build/update your own arch repo. Use the following
 
 * ARCH_REPO_NAME
     * The name of your repository (choose freely but avoid whitespaces)
+* PKG_OVERWRITE
+    * If set overwrites a package if it already exists
 * UID
     * Set the owner of the repo
 * GID

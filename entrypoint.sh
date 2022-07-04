@@ -48,7 +48,11 @@ else
                 echo "---------------- Building PKGBUILD file: $pkgbuild_file"
                 pushd "$(dirname $pkgbuild_file)"
                 su buildhelper -c "makepkg -m -f -c -C -s -i --noconfirm --skipinteg"
-                cp *.pkg.* $out_dir
+                if [ -z "$PKG_OVERWRITE" ]; then
+                    cp -n *.pkg.* $out_dir 
+                else
+                    cp *.pkg.* $out_dir
+                fi
                 if [ ! -z "$UID" ]; then chown $UID $out_dir/*.pkg.*; fi
                 if [ ! -z "$GID" ]; then chown :$GID $out_dir/*.pkg.*; fi
                 popd
