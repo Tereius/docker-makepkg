@@ -35,7 +35,7 @@ else
         tmp_dir=$( mktemp -d -t buildhelper.XXXXXXXXX )
         pushd "$tmp_dir"
         echo "---------------- Downloading $url to $tmp_dir"
-        wget -q "$url" -P ./
+        wget -q --content-disposition "$url" -P ./
         find "$(cd ..; pwd)" -name '*' -type f -print0 |
             while IFS= read -r -d '' downloaded_file; do
                 echo "---------------- Extracting $downloaded_file"
