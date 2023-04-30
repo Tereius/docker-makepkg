@@ -66,7 +66,7 @@ else
                         chown -R buildhelper:buildhelper ./
                         echo "---------------- Building PKGBUILD file: $pkgbuild_file"
                         pushd "$(dirname $pkgbuild_file)"
-                        su buildhelper -c "makepkg -m -f -c -C -s -i --noconfirm --skipinteg &> build.log || rm -f $hash_dir/$hash; cat build.log"
+                        su buildhelper -c "makepkg -m -f -c -C -s -i --noconfirm --skipinteg &> build.log || { cat build.log ; rm -f $hash_dir/$hash; }"
 
                         if [ -z "$PKG_OVERWRITE" ]; then
                             cp -n *.pkg.* $out_dir 
