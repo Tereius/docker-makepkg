@@ -16,8 +16,6 @@ extract() {
      fi
 }
 
-pacman -Syu --noconfirm
-
 if [ -z "$1" ]; then
     echo "Expecting at least one URL pointing to a PKGBUILD file or a zip/tar archive containing a PKGBUILD file."
     exit 1
@@ -30,41 +28,65 @@ else
         out_dir=$arch_dir/x86_64
     fi
 
-    for url in "$@"
-    do
-        tmp_dir=$( mktemp -d -t buildhelper.XXXXXXXXX )
-        pushd "$tmp_dir"
-        echo "---------------- Downloading $url to $tmp_dir"
-        wget -q --content-disposition "$url" -P ./
-        find "$(cd ..; pwd)" -name '*' -type f -print0 |
-            while IFS= read -r -d '' downloaded_file; do
-                echo "---------------- Extracting $downloaded_file"
-                extract "$downloaded_file"
-            done
+    hash_dir=$( mktemp -d -t buildhelperhashes.XXXXXXXXX )
 
-        find "$(cd ..; pwd)" -name 'PKGBUILD' -type f -print0 |
-            while IFS= read -r -d '' pkgbuild_file; do
-                chown -R buildhelper:buildhelper ./
-                echo "---------------- Building PKGBUILD file: $pkgbuild_file"
-                pushd "$(dirname $pkgbuild_file)"
-                su buildhelper -c "makepkg -m -f -c -C -s -i --noconfirm --skipinteg"
-                if [ -z "$PKG_OVERWRITE" ]; then
-                    cp -n *.pkg.* $out_dir 
-                else
-                    cp *.pkg.* $out_dir
-                fi
-                if [ ! -z "$UID" ]; then chown $UID $out_dir/*.pkg.*; fi
-                if [ ! -z "$GID" ]; then chown :$GID $out_dir/*.pkg.*; fi
-                popd
-            done
-        popd
-        rm -r "$tmp_dir"
+    while :
+    do
+
+        pacman -Syu --noconfirm
+
+        for url in "$@"
+        do
+            tmp_dir=$( mktemp -d -t buildhelper.XXXXXXXXX )
+            pushd "$tmp_dir"
+            echo "---------------- Downloading $url to $tmp_dir"
+            wget -q --content-disposition "$url" -P ./
+            hash=$(sha256sum ./* | sha256sum | awk '{print $1}')
+            if [ ! -f "$hash_dir/$hash" ]; then
+                find "$(cd ..; pwd)" -name '*' -type f -print0 |
+                    while IFS= read -r -d '' downloaded_file; do
+                        echo "---------------- Extracting $downloaded_file"
+                        extract "$downloaded_file"
+                    done
+
+                find "$(cd ..; pwd)" -name 'PKGBUILD' -type f -print0 |
+                    while IFS= read -r -d '' pkgbuild_file; do
+                        chown -R buildhelper:buildhelper ./
+                        echo "---------------- Building PKGBUILD file: $pkgbuild_file"
+                        pushd "$(dirname $pkgbuild_file)"
+                        su buildhelper -c "makepkg -m -f -c -C -s -i --noconfirm --skipinteg &> build.log || cat build.log"
+
+                        if [ -z "$PKG_OVERWRITE" ]; then
+                            cp -n *.pkg.* $out_dir 
+                        else
+                            cp *.pkg.* $out_dir
+                        fi
+                        if [ ! -z "$UID" ]; then chown $UID $out_dir/*.pkg.*; fi
+                        if [ ! -z "$GID" ]; then chown :$GID $out_dir/*.pkg.*; fi
+                        popd
+                    done
+                touch "$hash_dir/$hash"
+            else
+                echo "---------------- Skipping (no changes detected): $url"
+            fi
+
+            popd
+            rm -rf "$tmp_dir"
+        done
+
+        if [ ! -z "$ARCH_REPO_NAME" ]; then
+            echo "---------------- Creating/Updating repo with name \"$ARCH_REPO_NAME\""
+            repo-add --nocolor -R $out_dir/$ARCH_REPO_NAME.db.tar.gz $out_dir/*.pkg.*
+            if [ ! -z "$UID" ]; then chown -R $UID $arch_dir; fi
+            if [ ! -z "$GID" ]; then chown -R :$GID $arch_dir; fi
+        fi
+
+        if [ -z "$CONTINUOUS" ]; then
+            break
+        else
+            echo "---------------- Finished - waiting for next run in $CONTINUOUS_INTERVAL_SEC seconds"
+            sleep $CONTINUOUS_INTERVAL_SEC
+        fi
     done
 
-    if [ ! -z "$ARCH_REPO_NAME" ]; then
-        echo "---------------- Creating/Updating repo with name \"$ARCH_REPO_NAME\""
-        repo-add --nocolor -R $out_dir/$ARCH_REPO_NAME.db.tar.gz $out_dir/*.pkg.*
-        if [ ! -z "$UID" ]; then chown -R $UID $arch_dir; fi
-        if [ ! -z "$GID" ]; then chown -R :$GID $arch_dir; fi
-    fi
 fi

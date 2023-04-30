@@ -26,11 +26,15 @@ If you are unsure where to search for packages and the corresponding PKGBUILD fi
 
 You can use this container to build/update your own arch repo. Use the following environment variable to put the package(s) inside a repository structure. The repository can be served directly from a webserver.
 
-* ARCH_REPO_NAME
-    * The name of your repository (choose freely but avoid whitespaces)
-* PKG_OVERWRITE
-    * If set overwrites a package if it already exists
-* UID
-    * Set the owner of the repo
-* GID
-    * Set the owner group of the repo
+- ARCH_REPO_NAME
+  - The name of your repository (choose freely but avoid whitespaces)
+- PKG_OVERWRITE
+  - If set overwrites a package if it already exists
+- UID
+  - Set the owner of the repo
+- GID
+  - Set the owner group of the repo
+- CONTINUOUS
+  - Instead of running once run continuous
+- CONTINUOUS_INTERVAL_SEC
+  - Sleep for x seconds between intervals (default 600)

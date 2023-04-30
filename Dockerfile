@@ -10,4 +10,6 @@ RUN echo "buildhelper ALL=(ALL) NOPASSWD:ALL" | sudo EDITOR='tee -a' visudo
 WORKDIR /home
 COPY entrypoint.sh ./
 RUN chmod +x entrypoint.sh
+ENV TERM=linux
+ENV CONTINUOUS_INTERVAL_SEC=600
 ENTRYPOINT ["./entrypoint.sh"]
