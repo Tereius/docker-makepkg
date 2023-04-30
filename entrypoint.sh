@@ -16,6 +16,14 @@ extract() {
      fi
 }
 
+pushd () {
+    command pushd "$@" > /dev/null
+}
+
+popd () {
+    command popd "$@" > /dev/null
+}
+
 if [ -z "$1" ]; then
     echo "Expecting at least one URL pointing to a PKGBUILD file or a zip/tar archive containing a PKGBUILD file."
     exit 1
@@ -28,7 +36,7 @@ else
         out_dir=$arch_dir/x86_64
     fi
 
-    hash_dir=$( mktemp -d -t buildhelperhashes.XXXXXXXXX )
+    hash_dir=$( mktemp -d -t hashes.XXXXXXXXX )
 
     while :
     do
@@ -43,13 +51,13 @@ else
             wget -q --content-disposition "$url" -P ./
             hash=$(sha256sum ./* | sha256sum | awk '{print $1}')
             if [ ! -f "$hash_dir/$hash" ]; then
-                find "$(cd ..; pwd)" -name '*' -type f -print0 |
+                find "$(cd $tmp_dir; pwd)" -name '*' -type f -print0 |
                     while IFS= read -r -d '' downloaded_file; do
                         echo "---------------- Extracting $downloaded_file"
                         extract "$downloaded_file"
                     done
 
-                find "$(cd ..; pwd)" -name 'PKGBUILD' -type f -print0 |
+                find "$(cd $tmp_dir; pwd)" -name 'PKGBUILD' -type f -print0 |
                     while IFS= read -r -d '' pkgbuild_file; do
                         chown -R buildhelper:buildhelper ./
                         echo "---------------- Building PKGBUILD file: $pkgbuild_file"
