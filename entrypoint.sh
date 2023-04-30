@@ -37,6 +37,7 @@ else
     fi
 
     hash_dir=$( mktemp -d -t hashes.XXXXXXXXX )
+    chown -R buildhelper:buildhelper $hash_dir
 
     while :
     do
@@ -57,12 +58,15 @@ else
                         extract "$downloaded_file"
                     done
 
+                touch "$hash_dir/$hash"
+                chown buildhelper:buildhelper "$hash_dir/$hash"
+
                 find "$(cd $tmp_dir; pwd)" -name 'PKGBUILD' -type f -print0 |
                     while IFS= read -r -d '' pkgbuild_file; do
                         chown -R buildhelper:buildhelper ./
                         echo "---------------- Building PKGBUILD file: $pkgbuild_file"
                         pushd "$(dirname $pkgbuild_file)"
-                        su buildhelper -c "makepkg -m -f -c -C -s -i --noconfirm --skipinteg &> build.log || cat build.log"
+                        su buildhelper -c "makepkg -m -f -c -C -s -i --noconfirm --skipinteg &> build.log || rm -f $hash_dir/$hash; cat build.log"
 
                         if [ -z "$PKG_OVERWRITE" ]; then
                             cp -n *.pkg.* $out_dir 
@@ -73,7 +77,6 @@ else
                         if [ ! -z "$GID" ]; then chown :$GID $out_dir/*.pkg.*; fi
                         popd
                     done
-                touch "$hash_dir/$hash"
             else
                 echo "---------------- Skipping (no changes detected): $url"
             fi
