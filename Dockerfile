@@ -1,6 +1,7 @@
 FROM archlinux:base-devel
 RUN mkdir /out
 RUN echo "[multilib]" >> /etc/pacman.conf && echo "Include = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf
+RUN echo 'MAKEFLAGS="-j$(nproc)"' >> /etc/makepkg.conf
 RUN pacman-key --init
 RUN pacman -Sy --noconfirm archlinux-keyring && pacman -Su --noconfirm
 RUN pacman -Syyuq --noconfirm
