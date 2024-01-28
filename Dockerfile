@@ -5,7 +5,7 @@ RUN echo 'MAKEFLAGS="-j$(nproc)"' >> /etc/makepkg.conf
 RUN pacman-key --init
 RUN pacman -Sy --noconfirm archlinux-keyring && pacman -Su --noconfirm
 RUN pacman -Syyuq --noconfirm
-RUN pacman -S sudo tar unzip wget git pacutils perl-json-xs --noconfirm
+RUN pacman -S sudo tar unzip wget git pacutils perl-json-xs reflector --noconfirm
 RUN useradd -u 10002 -m buildhelper
 RUN echo "buildhelper ALL=(root) NOPASSWD: /usr/bin/pacman, /usr/bin/pacsync" | sudo EDITOR='tee -a' visudo
 WORKDIR /home
