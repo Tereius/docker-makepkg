@@ -29,75 +29,57 @@ if [ -z "$1" ]; then
     exit 1
 else
 
-    out_dir=/out
-    if [ ! -z "$ARCH_REPO_NAME" ]; then
-        mkdir -p /out/arch-repo/x86_64
-        arch_dir=/out/arch-repo
-        out_dir=$arch_dir/x86_64
+    set -- "aurutils" "$@"
+    packman_conf="/etc/pacman.conf"
+    out_dir="/out/arch-repo/x86_64"
+    out_file="$out_dir/$ARCH_REPO_NAME.db.tar.gz"
+
+    if ! grep -q "#BEACON" $packman_conf; then
+        echo "[$ARCH_REPO_NAME]" >> /etc/pacman.conf
+        echo "SigLevel = Optional TrustAll" >> /etc/pacman.conf
+        echo "Server = file://${out_dir}" >> /etc/pacman.conf
+        echo "#BEACON" >> /etc/pacman.conf
     fi
 
-    hash_dir=$( mktemp -d -t hashes.XXXXXXXXX )
-    chown -R buildhelper:buildhelper $hash_dir
+    if [ ! -f "$out_file" ]; then
+        install -o buildhelper -g buildhelper -d "${out_dir}"
+        su buildhelper -c "repo-add --nocolor "${out_file}""
+    fi
 
     while :
     do
+        
+        echo "---------------- Starting new run ----------------"
+        echo "---------------- Updating system"
+        pacman -Sy --noconfirm archlinux-keyring aurutils && pacman -Su --noconfirm
 
-        pacman -Syu --noconfirm
-
-        for url in "$@"
-        do
-            tmp_dir=$( mktemp -d -t buildhelper.XXXXXXXXX )
-            pushd "$tmp_dir"
-            echo "---------------- Downloading $url to $tmp_dir"
-            wget -q --content-disposition "$url" -P ./
-            hash=$(sha256sum ./* | sha256sum | awk '{print $1}')
-            if [ ! -f "$hash_dir/$hash" ]; then
+        for url in "$@"; do
+            if grep -q "https://" <<< "$url" || grep -q "http://" <<< "$url"; then
+                tmp_dir=$( mktemp -d -t buildhelper.XXXXXXXXX )
+                pushd "$tmp_dir"
+                wget -q --content-disposition "$url" -P ./
                 find "$(cd $tmp_dir; pwd)" -name '*' -type f -print0 |
                     while IFS= read -r -d '' downloaded_file; do
                         echo "---------------- Extracting $downloaded_file"
                         extract "$downloaded_file"
                     done
-
-                touch "$hash_dir/$hash"
-                chown buildhelper:buildhelper "$hash_dir/$hash"
-
                 find "$(cd $tmp_dir; pwd)" -name 'PKGBUILD' -type f -print0 |
                     while IFS= read -r -d '' pkgbuild_file; do
                         chown -R buildhelper:buildhelper ./
                         echo "---------------- Building PKGBUILD file: $pkgbuild_file"
                         pushd "$(dirname $pkgbuild_file)"
-                        su buildhelper -c "makepkg -m -f -c -C -s -i --noconfirm --skipinteg &> build.log || { cat build.log ; rm -f $hash_dir/$hash; }"
-
-                        if [ -z "$PKG_OVERWRITE" ]; then
-                            cp -n *.pkg.* $out_dir 
-                        else
-                            cp *.pkg.* $out_dir
-                        fi
-                        if [ ! -z "$UID" ]; then chown $UID $out_dir/*.pkg.*; fi
-                        if [ ! -z "$GID" ]; then chown :$GID $out_dir/*.pkg.*; fi
+                        su buildhelper -c "aur build -d $ARCH_REPO_NAME --noconfirm -C -s --margs --skipinteg,-m"
                         popd
                     done
+                popd
+                rm -rf "$tmp_dir"
             else
-                echo "---------------- Skipping (no changes detected): $url"
+                echo "---------------- Building AUR package: $url"
+                su buildhelper -c "aur sync -d $ARCH_REPO_NAME --noconfirm --optdepends --noview $url"
             fi
-
-            popd
-            rm -rf "$tmp_dir"
         done
 
-        if [ ! -z "$ARCH_REPO_NAME" ]; then
-            echo "---------------- Creating/Updating repo with name \"$ARCH_REPO_NAME\""
-            repo-add --nocolor -R $out_dir/$ARCH_REPO_NAME.db.tar.gz $out_dir/*.pkg.*
-            if [ ! -z "$UID" ]; then chown -R $UID $arch_dir; fi
-            if [ ! -z "$GID" ]; then chown -R :$GID $arch_dir; fi
-        fi
-
-        if [ -z "$CONTINUOUS" ]; then
-            break
-        else
-            echo "---------------- Finished - waiting for next run in $CONTINUOUS_INTERVAL_SEC seconds"
-            sleep $CONTINUOUS_INTERVAL_SEC
-        fi
+        echo "---------------- Finished - waiting for next run in $CONTINUOUS_INTERVAL_SEC seconds"
+        sleep $CONTINUOUS_INTERVAL_SEC
     done
-
 fi
