@@ -76,7 +76,7 @@ else
                 rm -rf "$tmp_dir"
             else
                 echo "---------------- Building AUR package: $url"
-                su buildhelper -c "aur sync -d $ARCH_REPO_NAME --noconfirm --optdepends --noview $url"
+                su buildhelper -c "aur sync -d $ARCH_REPO_NAME --noconfirm --optdepends --noview $url --margs --skipinteg,-m"
             fi
         done
 

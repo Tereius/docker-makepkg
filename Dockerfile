@@ -18,4 +18,5 @@ RUN chmod +x entrypoint.sh
 ENV TERM=linux
 ENV ARCH_REPO_NAME=unknown
 ENV CONTINUOUS_INTERVAL_SEC=600
+ENV LIBGL_ALWAYS_SOFTWARE=true
 ENTRYPOINT ["./entrypoint.sh"]
