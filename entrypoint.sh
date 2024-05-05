@@ -69,14 +69,14 @@ else
                         chown -R buildhelper:buildhelper ./
                         echo "---------------- Building PKGBUILD file: $pkgbuild_file"
                         pushd "$(dirname $pkgbuild_file)"
-                        su buildhelper -c "aur build -d $ARCH_REPO_NAME --noconfirm -C -s --margs --skipinteg,-m"
+                        su buildhelper -c "aur build -d $ARCH_REPO_NAME --noconfirm --cleanbuild --clean -s --margs --skipinteg,-m"
                         popd
                     done
                 popd
                 rm -rf "$tmp_dir"
             else
                 echo "---------------- Building AUR package: $url"
-                su buildhelper -c "aur sync -d $ARCH_REPO_NAME --noconfirm --optdepends --noview $url --margs --skipinteg,-m"
+                su buildhelper -c "aur sync -d $ARCH_REPO_NAME --noconfirm --cleanbuild --clean --reset --optdepends --noview $url --margs --skipinteg,-m"
             fi
         done
 
