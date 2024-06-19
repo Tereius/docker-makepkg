@@ -52,7 +52,7 @@ else
         echo "---------------- Starting new run ----------------"
         echo "---------------- Updating system"
         reflector --protocol https --latest 5 --sort rate --save /etc/pacman.d/mirrorlist
-        pacman -Sy --noconfirm archlinux-keyring aurutils && pacman -Su --noconfirm
+        pacman -Sy --noconfirm archlinux-keyring && pacman -Su --noconfirm
 
         for url in "$@"; do
             if grep -q "https://" <<< "$url" || grep -q "http://" <<< "$url"; then
