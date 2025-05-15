@@ -1,4 +1,4 @@
-#! /bin/bash
+#!/bin/bash
 
 extract() {
      if [ -f $1 ] ; then
