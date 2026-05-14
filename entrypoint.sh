@@ -24,12 +24,22 @@ popd () {
     command popd "$@" > /dev/null
 }
 
+extract_package_name_from_log_file() {
+
+    package_name=$(sed -n 's/^==> Making package: \([^0-9]*\) .*/\1/p' "${1}")
+
+    if [ -z "${package_name// }" ]; then
+        package_name="unknown_package"
+    fi
+    echo "${package_name}"
+}
+
 if [ -z "$1" ]; then
     echo "Expecting at least one URL pointing to a PKGBUILD file or a zip/tar archive containing a PKGBUILD file."
     exit 1
 else
 
-    set -- "aurutils" "$@"
+    #set -- "aurutils" "$@"
     packman_conf="/etc/pacman.conf"
     out_dir="/out/arch-repo/x86_64"
     out_file="$out_dir/$ARCH_REPO_NAME.db.tar.gz"
@@ -49,10 +59,13 @@ else
     while :
     do
         
-        echo "---------------- Starting new run ----------------"
-        echo "---------------- Updating system"
-        reflector --protocol https --latest 5 --sort rate --save /etc/pacman.d/mirrorlist
-        pacman -Sy --noconfirm archlinux-keyring && pacman -Su --noconfirm
+        echo "=> Preparing new run"
+        echo "==> Rating mirrors"
+        reflector --protocol https --latest 5 --sort rate --save /etc/pacman.d/mirrorlist > /dev/null 2>&1 && echo "   └─ SUCCESS" || echo "   └─ ERROR"
+        echo "==> Updating keyring"
+        pacman -Sy --noconfirm archlinux-keyring > /dev/null 2>&1 && echo "   └─ SUCCESS" || echo "   └─ ERROR"
+        echo "==> Updating system"
+        pacman -Su --noconfirm > /dev/null 2>&1 && echo "   └─ SUCCESS" || echo "   └─ ERROR"
 
         for url in "$@"; do
             if grep -q "https://" <<< "$url" || grep -q "http://" <<< "$url"; then
@@ -61,26 +74,33 @@ else
                 wget -q --content-disposition "$url" -P ./
                 find "$(cd $tmp_dir; pwd)" -name '*' -type f -print0 |
                     while IFS= read -r -d '' downloaded_file; do
-                        echo "---------------- Extracting $downloaded_file"
                         extract "$downloaded_file"
                     done
                 find "$(cd $tmp_dir; pwd)" -name 'PKGBUILD' -type f -print0 |
                     while IFS= read -r -d '' pkgbuild_file; do
                         chown -R buildhelper:buildhelper ./
-                        echo "---------------- Building PKGBUILD file: $pkgbuild_file"
+                        echo "=> Building PKGBUILD file: $pkgbuild_file"
+                        LOG_FILE=$( mktemp -t buildhelper.XXXXXXXXX.log )
+                        chown buildhelper:buildhelper ${LOG_FILE} && chmod 644 ${LOG_FILE}
                         pushd "$(dirname $pkgbuild_file)"
-                        su buildhelper -c "aur build -d $ARCH_REPO_NAME --noconfirm --cleanbuild --clean -s --margs --skipinteg,-m"
+                        su buildhelper -c "aur build -d $ARCH_REPO_NAME --noconfirm --cleanbuild --clean -s --margs --skipinteg,-m > \"${LOG_FILE}\" 2>&1" && echo "   └─ SUCCESS" || echo "   └─ ERROR"
                         popd
+                        PACKAGE_NAME=$( extract_package_name_from_log_file "${LOG_FILE}" )
+                        mv -f "${LOG_FILE}" "${out_dir}/${PACKAGE_NAME}.log"
                     done
                 popd
                 rm -rf "$tmp_dir"
             else
-                echo "---------------- Building AUR package: $url"
-                su buildhelper -c "aur sync -d $ARCH_REPO_NAME --noconfirm --cleanbuild --clean --reset --optdepends --noview $url --margs --skipinteg,-m"
+                echo "=> Building AUR package: $url"
+                LOG_FILE=$( mktemp -t buildhelper.XXXXXXXXX.log )
+                chown buildhelper:buildhelper ${LOG_FILE} && chmod 644 ${LOG_FILE}
+                su buildhelper -c "aur sync -d $ARCH_REPO_NAME --noconfirm --cleanbuild --clean --reset --optdepends --noview $url --margs --skipinteg,-m > \"${LOG_FILE}\" 2>&1" && echo "   └─ SUCCESS" || echo "   └─ ERROR"
+                PACKAGE_NAME=$( extract_package_name_from_log_file "${LOG_FILE}" )
+                mv -f "${LOG_FILE}" "${out_dir}/${PACKAGE_NAME}.log"
             fi
         done
 
-        echo "---------------- Finished - waiting for next run in $CONTINUOUS_INTERVAL_SEC seconds"
+        echo "=> Finished - waiting for next run in $CONTINUOUS_INTERVAL_SEC seconds"
         sleep $CONTINUOUS_INTERVAL_SEC
     done
 fi
