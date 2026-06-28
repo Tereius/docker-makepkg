@@ -52,8 +52,9 @@ else
     fi
 
     if [ ! -f "$out_file" ]; then
-        install -o buildhelper -g buildhelper -d "${out_dir}"
-        su buildhelper -c "repo-add --nocolor "${out_file}""
+        mkdir -p "${out_dir}"
+        repo-add --nocolor "${out_file}"
+        chown buildhelper:buildhelper -R "${out_dir}"
     fi
 
     while :
